@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fiverr Gig Rank Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #030712;
+      --surface:  #0a0f1e;
+      --border:   #1e293b;
+      --text:     #e2e8f0;
+      --muted:    #475569;
+      --green:    #00d4aa;
+      --blue:     #0ea5e9;
+      --amber:    #f59e0b;
+      --red:      #ef4444;
+      --purple:   #7c3aed;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-weight: 400;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── BG effects ── */
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: radial-gradient(circle at 1px 1px, #1e293b 1px, transparent 0);
+      background-size: 32px 32px;
+      opacity: 0.4;
+    }
+    .bg-glow-1 {
+      position: fixed; top: -300px; right: -200px;
+      width: 700px; height: 700px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,212,170,0.05), transparent 65%);
+      pointer-events: none; z-index: 0;
+    }
+    .bg-glow-2 {
+      position: fixed; bottom: -200px; left: -200px;
+      width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(14,165,233,0.05), transparent 65%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Layout ── */
+    .container {
+      position: relative; z-index: 1;
+      max-width: 860px; margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ── Header ── */
+    .header { padding: 56px 0 48px; animation: fadeUp 0.6s ease; }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-bottom: 24px;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 12px var(--green);
+      animation: pulse 2s infinite;
+    }
+    .status-label {
+      font-family: 'Syne', sans-serif; font-size: 10px;
+      font-weight: 700; letter-spacing: 3px; color: var(--muted);
+    }
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 900; line-height: 1; letter-spacing: -2px; margin-bottom: 16px;
+    }
+    h1 .outline {
+      -webkit-text-stroke: 1px var(--border); color: transparent;
+    }
+    .header-desc { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 500px; font-weight: 300; margin-bottom: 20px; }
+
+    .algo-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+    .algo-pill {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 10px;
+    }
+    .algo-pill .dot { font-size: 8px; }
+    .algo-pill .name { font-family: 'Syne',sans-serif; font-weight: 700; font-size: 10px; color: #64748b; }
+    .algo-pill .pct { font-size: 9px; font-weight: 700; }
+    .algo-pill .sep { font-size: 9px; color: var(--border); }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px 22px; margin-bottom: 12px;
+    }
+    .panel-label {
+      font-family: 'Syne',sans-serif; font-size: 9px;
+      font-weight: 800; letter-spacing: 3px; color: #334155;
+      margin-bottom: 10px; text-transform: uppercase;
+    }
+
+    /* ── Mode tabs ── */
+    .mode-tabs {
+      display: flex; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 4px; margin-bottom: 12px;
+    }
+    .mode-btn {
+      flex: 1; padding: 10px; border-radius: 9px; border: none; cursor: pointer;
+      font-family: 'Syne',sans-serif; font-weight: 800; font-size: 11px;
+      letter-spacing: 1.5px; transition: all 0.2s; background: transparent; color: #334155;
+    }
+    .mode-btn.active { background: var(--green); color: var(--bg); }
+
+    /* ── Input ── */
+    .input-field {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px; color: var(--text);
+      font-size: 13px; outline: none; font-family: monospace;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus { border-color: var(--green); }
+    .input-field::placeholder { color: #1e293b; }
+    textarea.input-field { resize: vertical; line-height: 1.7; }
+    .input-hint { font-size: 10px; color: #334155; margin-top: 7px; }
+
+    /* ── Analyze button ── */
+    .analyze-btn {
+      width: 100%; padding: 16px; border: none; border-radius: 12px;
+      background: linear-gradient(135deg, var(--green), var(--blue));
+      color: var(--bg); font-family: 'Syne',sans-serif; font-weight: 900;
+      font-size: 14px; letter-spacing: 2px; cursor: pointer; transition: all 0.2s;
+    }
+    .analyze-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,212,170,0.35); }
+    .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ── Error ── */
+    .error-box {
+      background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 10px; padding: 10px 14px;
+      font-size: 12px; color: var(--red); margin-bottom: 12px; display: none;
+    }
+
+    /* ── Loading ── */
+    .loading-box { text-align: center; padding: 40px 20px; display: none; }
+    .spinner {
+      width: 44px; height: 44px; border: 3px solid var(--border);
+      border-top-color: var(--green); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    }
+    .loading-step { font-size: 13px; color: var(--muted); font-family: 'Syne',sans-serif; }
+
+    /* ── Results ── */
+    #results { display: none; animation: fadeUp 0.5s ease; }
+
+    /* Score ring */
+    .hero-card {
+      border-radius: 20px; padding: 28px; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    }
+    .score-ring-wrap { flex-shrink: 0; }
+    .hero-info { flex: 1; min-width: 200px; }
+    .tier-badge {
+      font-family: 'Syne',sans-serif; font-size: 10px; font-weight: 800;
+      letter-spacing: 3px; margin-bottom: 8px;
+    }
+    .gig-title-result {
+      font-family: 'Syne',sans-serif; font-size: clamp(16px,3vw,22px);
+      font-weight: 900; color: var(--text); line-height: 1.2; margin-bottom: 10px;
+    }
+    .seller-info { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .exec-summary { font-size: 13px; color: #94a3b8; line-height: 1.7; }
+
+    /* Tab bar */
+    .tab-bar {
+      display: flex; gap: 4px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 4px; margin-bottom: 12px;
+    }
+    .tab-btn {
+      flex: 1; background: none; border: none; cursor: pointer;
+      font-family: 'Syne',sans-serif; font-weight: 700; font-size: 11px;
+      letter-spacing: 1.5px; padding: 8px 16px; border-radius: 6px;
+      transition: all 0.2s; color: var(--muted);
+    }
+    .tab-btn.active { background: var(--border); color: var(--text); }
+
+    .tab-panel { display: none; animation: fadeUp 0.3s ease; }
+    .tab-panel.active { display: block; }
+
+    /* Factor bars */
+    .factor-item {
+      border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+    }
+    .factor-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .factor-icon { font-size: 16px; }
+    .factor-meta { flex: 1; display: flex; justify-content: space-between; align-items: center; }
+    .factor-name { font-size: 12px; font-weight: 700; color: #cbd5e1; font-family: 'Syne',sans-serif; }
+    .factor-right { display: flex; align-items: center; gap: 8px; }
+    .weight-label { font-size: 10px; color: var(--muted); font-family: monospace; }
+    .status-pill {
+      font-size: 10px; font-weight: 700; padding: 2px 8px;
+      border-radius: 20px; font-family: 'Syne',sans-serif;
+    }
+    .bar-track { height: 5px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 5px; width: 0; transition: width 1s cubic-bezier(0.34,1.56,0.64,1); }
+    .factor-insight { font-size: 11px; color: var(--muted); margin-top: 6px; display: flex; gap: 8px; }
+    .urgency-pill {
+      font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+      font-family: 'Syne',sans-serif; white-space: nowrap; flex-shrink: 0; margin-top: 1px;
+    }
+
+    /* Wins/Issues grid */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .wins-box, .issues-box { border-radius: 14px; padding: 18px; }
+    .wins-box { background: rgba(0,212,170,0.04); border: 1px solid rgba(0,212,170,0.12); }
+    .issues-box { background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.12); }
+    .box-label {
+      font-family: 'Syne',sans-serif; font-size: 9px; font-weight: 800;
+      letter-spacing: 3px; margin-bottom: 12px;
+    }
+    .win-item, .issue-item {
+      font-size: 12px; color: #94a3b8; margin-bottom: 8px;
+      padding-left: 12px; line-height: 1.5;
+    }
+
+    /* SEO section */
+    .seo-block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 12px; }
+    .title-display {
+      background: var(--bg); border-radius: 8px; padding: 10px 12px;
+      font-family: monospace; font-size: 13px; color: #cbd5e1; line-height: 1.5; margin-bottom: 12px;
+    }
+    .check-grid { display: flex; gap: 8px; margin-bottom: 14px; }
+    .check-item {
+      flex: 1; border-radius: 8px; padding: 10px 12px; text-align: center;
+    }
+    .check-emoji { font-size: 18px; margin-bottom: 2px; }
+    .check-label { font-size: 10px; color: var(--muted); }
+    .suggested-title {
+      background: rgba(0,212,170,0.06); border: 1px solid rgba(0,212,170,0.25);
+      border-radius: 8px; padding: 10px 12px;
+      font-family: monospace; font-size: 13px; color: var(--green); line-height: 1.5;
+    }
+
+    .tag-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag-chip {
+      border-radius: 20px; padding: 4px 12px; font-size: 11px;
+    }
+
+    /* Action plan */
+    .action-item {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; margin-bottom: 10px;
+    }
+    .action-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%; background: #0f172a;
+      border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne',sans-serif; font-size: 11px; font-weight: 900;
+      color: var(--muted); flex-shrink: 0;
+    }
+    .impact-pill, .tf-pill {
+      font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px;
+      font-family: 'Syne',sans-serif; letter-spacing: 1px;
+    }
+    .action-text { font-size: 13px; color: #cbd5e1; line-height: 1.6; padding-left: 34px; }
+
+    .algo-note-box {
+      background: rgba(124,58,237,0.06); border: 1px solid rgba(124,58,237,0.2);
+      border-radius: 14px; padding: 16px 18px;
+    }
+    .algo-note-label {
+      font-family: 'Syne',sans-serif; font-size: 9px; font-weight: 800;
+      letter-spacing: 3px; color: var(--purple); margin-bottom: 8px;
+    }
+    .algo-note-text { font-size: 12px; color: #94a3b8; line-height: 1.7; }
+
+    .reset-btn {
+      width: 100%; margin-top: 16px; background: transparent;
+      border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+      color: #334155; font-family: 'Syne',sans-serif; font-weight: 700;
+      font-size: 11px; letter-spacing: 2px; cursor: pointer; transition: all 0.2s;
+    }
+    .reset-btn:hover { border-color: var(--green); color: var(--green); }
+
+    .competitor-box {
+      background: rgba(14,165,233,0.04); border: 1px solid rgba(14,165,233,0.15);
+      border-radius: 14px; padding: 16px 18px; margin-top: 12px;
+    }
+
+    /* Animations */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes spin   { to { transform: rotate(360deg); } }
+    @keyframes pulse  { 0%,100% { opacity:0.4; } 50% { opacity:1; } }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="status-badge">
+        <div class="status-dot"></div>
+        <span class="status-label">FIVERR RANK INTELLIGENCE — 2025 ALGORITHM</span>
+      </div>
+      <h1>GIG RANK<br><span class="outline">ANALYZER</span></h1>
+      <p class="header-desc">Powered by Fiverr's official 2025 algorithm data — Success Score, CTR, buyer satisfaction, and 5 more weighted factors.</p>
+      <div class="algo-pills" id="algoPills"></div>
+    </div>
+
+    <!-- Input Section -->
+    <div id="inputSection">
+      <!-- Mode tabs -->
+      <div class="mode-tabs">
+        <button class="mode-btn active" id="btnUrl" onclick="setMode('url')">🔗  GIG URL</button>
+        <button class="mode-btn" id="btnManual" onclick="setMode('manual')">📋  PASTE INFO</button>
+      </div>
+
+      <!-- URL input -->
+      <div class="panel" id="urlPanel">
+        <div class="panel-label">GIG URL</div>
+        <input type="text" class="input-field" id="gigUrl" placeholder="https://www.fiverr.com/username/gig-title" />
+        <div class="input-hint">⚡ AI will analyze the URL slug, keywords, niche signals + provide algorithm framework analysis</div>
+      </div>
+
+      <!-- Manual input -->
+      <div class="panel" id="manualPanel" style="display:none">
+        <div class="panel-label">PASTE GIG DATA — MORE INFO = BETTER ANALYSIS</div>
+        <textarea class="input-field" id="gigInfo" rows="9"
+          placeholder="Title: I will design a professional minimalist logo&#10;Rating: 4.9 ⭐ (312 reviews)&#10;Level: Level 2 Seller&#10;Orders in queue: 8&#10;Response time: 1 hour&#10;&#10;Packages:&#10;Basic — $25 | 2-day delivery&#10;Standard — $65 | 3 concepts + revision&#10;&#10;Tags: logo design, minimalist logo, brand identity&#10;&#10;Description:&#10;Professional designer with 6+ years..."></textarea>
+      </div>
+
+      <!-- Error -->
+      <div class="error-box" id="errorBox"></div>
+
+      <!-- Analyze button -->
+      <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">ANALYZE GIG RANKING →</button>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-box" id="loadingBox">
+      <div class="spinner"></div>
+      <div class="loading-step" id="loadStep">Initializing...</div>
+    </div>
+
+    <!-- Results -->
+    <div id="results">
+      <!-- Hero card -->
+      <div class="hero-card" id="heroCard">
+        <div class="score-ring-wrap">
+          <svg width="140" height="140" viewBox="0 0 140 140" id="scoreRingSvg">
+            <defs>
+              <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00d4aa" id="gradStop1"/>
+                <stop offset="100%" stop-color="#00d4aa88" id="gradStop2"/>
+              </linearGradient>
+              <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            </defs>
+            <circle cx="70" cy="70" r="52" fill="none" stroke="#1e293b" stroke-width="10"/>
+            <circle cx="70" cy="70" r="52" fill="none" stroke="url(#rg)" stroke-width="10"
+              stroke-dasharray="326.7" stroke-dashoffset="326.7" stroke-linecap="round"
+              transform="rotate(-90 70 70)" filter="url(#glow)"
+              style="transition: stroke-dashoffset 1.4s cubic-bezier(0.34,1.56,0.64,1)"
+              id="scoreArc"/>
+            <text x="70" y="62" text-anchor="middle" fill="#00d4aa" font-size="28" font-weight="900"
+              font-family="'Syne', sans-serif" id="scoreText">0</text>
+            <text x="70" y="78" text-anchor="middle" fill="#475569" font-size="11" font-family="'Syne', sans-serif">/100</text>
+            <text x="70" y="96" text-anchor="middle" fill="#00d4aa" font-size="9" font-weight="700"
+              letter-spacing="2" font-family="'Syne', sans-serif" id="gradeText">—</text>
+          </svg>
+        </div>
+        <div class="hero-info">
+          <div class="tier-badge" id="tierBadge"></div>
+          <div class="gig-title-result" id="gigTitleResult"></div>
+          <div class="seller-info" id="sellerInfo"></div>
+          <div class="exec-summary" id="execSummary"></div>
+        </div>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('factors')">ALGO FACTORS</button>
+        <button class="tab-btn" onclick="switchTab('seo')">SEO AUDIT</button>
+        <button class="tab-btn" onclick="switchTab('action')">ACTION PLAN</button>
+      </div>
+
+      <!-- Factors tab -->
+      <div class="tab-panel active" id="tab-factors">
+        <div class="two-col">
+          <div class="wins-box">
+            <div class="box-label" style="color:#00d4aa">TOP WINS</div>
+            <div id="winsList"></div>
+          </div>
+          <div class="issues-box">
+            <div class="box-label" style="color:#ef4444">CRITICAL ISSUES</div>
+            <div id="issuesList"></div>
+          </div>
+        </div>
+        <div class="panel" style="padding:18px 18px 10px">
+          <div class="panel-label">ALGORITHM FACTOR BREAKDOWN</div>
+          <div id="factorsList"></div>
+        </div>
+        <div class="competitor-box" id="competitorBox" style="display:none">
+          <div class="box-label" style="color:#0ea5e9; font-family:'Syne',sans-serif; font-size:9px; font-weight:800; letter-spacing:3px; margin-bottom:8px">🎯 COMPETITOR EDGE ANALYSIS</div>
+          <div style="font-size:12px; color:#94a3b8; line-height:1.7" id="competitorText"></div>
+        </div>
+      </div>
+
+      <!-- SEO tab -->
+      <div class="tab-panel" id="tab-seo">
+        <div class="seo-block">
+          <div class="panel-label">TITLE SEO ANALYSIS</div>
+          <div style="font-size:10px; color:#475569; margin-bottom:4px">CURRENT TITLE</div>
+          <div class="title-display" id="currentTitle"></div>
+          <div class="check-grid" id="checkGrid"></div>
+          <div style="font-size:10px; color:#00d4aa; margin-bottom:6px">✨ SUGGESTED OPTIMIZED TITLE</div>
+          <div class="suggested-title" id="suggestedTitle"></div>
+        </div>
+        <div class="seo-block">
+          <div class="panel-label">GIG TAGS ANALYSIS</div>
+          <div style="font-size:10px; color:#475569; margin-bottom:8px">DETECTED TAGS</div>
+          <div class="tag-wrap" id="detectedTags" style="margin-bottom:14px"></div>
+          <div style="font-size:10px; color:#f59e0b; margin-bottom:8px">💡 MISSING HIGH-VALUE KEYWORDS</div>
+          <div class="tag-wrap" id="missingTags"></div>
+        </div>
+      </div>
+
+      <!-- Action tab -->
+      <div class="tab-panel" id="tab-action">
+        <div class="panel" style="padding:20px">
+          <div class="panel-label">PRIORITIZED ACTION PLAN</div>
+          <div id="actionList"></div>
+        </div>
+        <div class="algo-note-box" id="algoNoteBox" style="display:none">
+          <div class="algo-note-label">📌 ALGORITHM NOTE</div>
+          <div class="algo-note-text" id="algoNoteText"></div>
+        </div>
+      </div>
+
+      <button class="reset-btn" onclick="resetApp()">← NEW ANALYSIS</button>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Config ────────────────────────────────────────────────────────────
+    const BACKEND_URL = "/api/analyze"; // Vercel serverless function
+
+    const ALGO_WEIGHTS = [
+      { key:"successScore",    label:"Success Score",      weight:25, color:"#ff6b35", icon:"◈" },
+      { key:"ctr",             label:"CTR",                weight:20, color:"#00d4aa", icon:"◉" },
+      { key:"buyerSatisfaction", label:"Buyer Satisfaction", weight:15, color:"#7c3aed", icon:"◆" },
+      { key:"gigSEO",          label:"Gig SEO",            weight:12, color:"#0ea5e9", icon:"◇" },
+      { key:"repeatBuyers",    label:"Repeat Buyers",      weight:10, color:"#f59e0b", icon:"○" },
+      { key:"deliveryTime",    label:"On-Time Delivery",   weight:8,  color:"#10b981", icon:"◑" },
+      { key:"responseRate",    label:"Response Rate",      weight:6,  color:"#ec4899", icon:"◐" },
+      { key:"profileComplete", label:"Profile Complete",   weight:4,  color:"#8b5cf6", icon:"●" },
+    ];
+
+    // ── Render algo pills ────────────────────────────────────────────────
+    const pillsEl = document.getElementById("algoPills");
+    ALGO_WEIGHTS.forEach(f => {
+      pillsEl.innerHTML += `
+        <div class="algo-pill">
+          <span class="dot" style="color:${f.color}">●</span>
+          <span class="name">${f.label}</span>
+          <span class="sep">|</span>
+          <span class="pct" style="color:${f.color}">${f.weight}%</span>
+        </div>`;
+    });
+
+    // ── Mode switching ────────────────────────────────────────────────────
+    let currentMode = "url";
+    function setMode(m) {
+      currentMode = m;
+      document.getElementById("urlPanel").style.display    = m === "url"    ? "block" : "none";
+      document.getElementById("manualPanel").style.display = m === "manual" ? "block" : "none";
+      document.getElementById("btnUrl").classList.toggle("active",    m === "url");
+      document.getElementById("btnManual").classList.toggle("active", m === "manual");
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────
+    function switchTab(name) {
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.add("active");
+      document.querySelectorAll(".tab-btn").forEach(b => {
+        if (b.textContent.toLowerCase().includes(name === "factors" ? "algo" : name))
+          b.classList.add("active");
+      });
+    }
+
+    // ── Loading steps ─────────────────────────────────────────────────────
+    const LOAD_STEPS = [
+      "Parsing gig structure...",
+      "Analyzing keyword density...",
+      "Evaluating Success Score signals...",
+      "Measuring CTR indicators...",
+      "Checking buyer satisfaction metrics...",
+      "Benchmarking against competitors...",
+      "Generating ranked analysis...",
+    ];
+    let loadInterval;
+    function startLoading() {
+      let i = 0;
+      document.getElementById("loadStep").textContent = LOAD_STEPS[0];
+      loadInterval = setInterval(() => {
+        i = (i + 1) % LOAD_STEPS.length;
+        document.getElementById("loadStep").textContent = LOAD_STEPS[i];
+      }, 900);
+    }
+    function stopLoading() { clearInterval(loadInterval); }
+
+    // ── Analyze ───────────────────────────────────────────────────────────
+    async function analyze() {
+      const errorBox  = document.getElementById("errorBox");
+      const gigUrl    = document.getElementById("gigUrl").value.trim();
+      const gigInfo   = document.getElementById("gigInfo").value.trim();
+
+      errorBox.style.display = "none";
+
+      if (currentMode === "url" && !gigUrl.includes("fiverr.com")) {
+        showError("Please enter a valid Fiverr gig URL."); return;
+      }
+      if (currentMode === "manual" && gigInfo.length < 40) {
+        showError("Please provide more gig details."); return;
+      }
+
+      // Show loading
+      document.getElementById("inputSection").style.display = "none";
+      document.getElementById("loadingBox").style.display   = "block";
+      document.getElementById("results").style.display      = "none";
+      startLoading();
+
+      try {
+        const res = await fetch(BACKEND_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: currentMode, gigUrl, gigInfo }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || "Analysis failed");
+
+        stopLoading();
+        renderResults(data.result);
+
+      } catch (err) {
+        stopLoading();
+        document.getElementById("inputSection").style.display = "block";
+        document.getElementById("loadingBox").style.display   = "none";
+        showError(err.message || "Something went wrong. Please try again.");
+      }
+    }
+
+    function showError(msg) {
+      const el = document.getElementById("errorBox");
+      el.textContent = "⚠ " + msg;
+      el.style.display = "block";
+    }
+
+    // ── Render results ────────────────────────────────────────────────────
+    function renderResults(r) {
+      document.getElementById("loadingBox").style.display = "none";
+      document.getElementById("results").style.display    = "block";
+
+      // Tier config
+      const tiers = {
+        elite:   { label:"ELITE RANKING",    color:"#00d4aa", bg:"rgba(0,212,170,0.06)",  border:"rgba(0,212,170,0.2)" },
+        strong:  { label:"STRONG RANKING",   color:"#0ea5e9", bg:"rgba(14,165,233,0.06)", border:"rgba(14,165,233,0.2)" },
+        average: { label:"AVERAGE RANKING",  color:"#f59e0b", bg:"rgba(245,158,11,0.06)", border:"rgba(245,158,11,0.2)" },
+        weak:    { label:"WEAK RANKING",     color:"#ef4444", bg:"rgba(239,68,68,0.06)",  border:"rgba(239,68,68,0.2)" },
+      };
+      const tier = tiers[r.rankTier] || tiers.average;
+
+      // Hero card
+      const hero = document.getElementById("heroCard");
+      hero.style.background = tier.bg;
+      hero.style.border      = `1px solid ${tier.border}`;
+
+      // Score ring animation
+      const arc       = document.getElementById("scoreArc");
+      const scoreText = document.getElementById("scoreText");
+      const gradeText = document.getElementById("gradeText");
+      const grades    = { elite:"ELITE", strong:"STRONG", average:"AVERAGE", weak:"WEAK" };
+      const circ = 326.7;
+      setTimeout(() => {
+        arc.style.strokeDashoffset = circ - (r.overallScore / 100) * circ;
+        arc.style.stroke = `url(#rg)`;
+        document.getElementById("gradStop1").setAttribute("stop-color", tier.color);
+        document.getElementById("gradStop2").setAttribute("stop-color", tier.color + "88");
+        scoreText.setAttribute("fill", tier.color);
+        gradeText.setAttribute("fill", tier.color);
+        gradeText.textContent = grades[r.rankTier] || "";
+        // Count up
+        let n = 0;
+        const step = r.overallScore / 60;
+        const t = setInterval(() => {
+          n = Math.min(n + step, r.overallScore);
+          scoreText.textContent = Math.round(n);
+          if (n >= r.overallScore) clearInterval(t);
+        }, 16);
+      }, 200);
+
+      document.getElementById("tierBadge").textContent   = tier.label;
+      document.getElementById("tierBadge").style.color   = tier.color;
+      document.getElementById("gigTitleResult").textContent = r.gigTitle || "Fiverr Gig";
+      document.getElementById("sellerInfo").textContent   = r.sellerUsername ? `@${r.sellerUsername} · ${r.niche || ""}` : (r.niche || "");
+      document.getElementById("execSummary").textContent  = r.executiveSummary || "";
+
+      // Wins / Issues
+      const wl = document.getElementById("winsList");
+      const il = document.getElementById("issuesList");
+      wl.innerHTML = (r.topWins||[]).map(w =>
+        `<div class="win-item"><span style="color:#00d4aa;margin-right:6px">✓</span>${w}</div>`).join("");
+      il.innerHTML = (r.criticalIssues||[]).map(w =>
+        `<div class="issue-item"><span style="color:#ef4444;margin-right:6px">✗</span>${w}</div>`).join("");
+
+      // Algorithm factors
+      const fl = document.getElementById("factorsList");
+      fl.innerHTML = "";
+      ALGO_WEIGHTS.forEach((f, i) => {
+        const fd = r.algorithmFactors?.[f.key];
+        if (!fd) return;
+        const isGood = fd.score >= 70, isMid = fd.score >= 45;
+        const col    = isGood ? "#00d4aa" : isMid ? "#f59e0b" : "#ef4444";
+        const status = isGood ? "STRONG" : isMid ? "AVERAGE" : "WEAK";
+        const uc     = fd.urgency === "high" ? "#ef4444" : fd.urgency === "medium" ? "#f59e0b" : "#00d4aa";
+        const div = document.createElement("div");
+        div.className = "factor-item";
+        div.style.background = `${col}10`;
+        div.style.border     = `1px solid ${col}22`;
+        div.innerHTML = `
+          <div class="factor-head">
+            <span class="factor-icon" style="color:${f.color}">${f.icon}</span>
+            <div class="factor-meta">
+              <span class="factor-name">${f.label}</span>
+              <div class="factor-right">
+                <span class="weight-label">weight: ${f.weight}%</span>
+                <span class="status-pill" style="background:${col}22;color:${col}">${status}</span>
+              </div>
+            </div>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" style="background:linear-gradient(90deg,${col},${col}88);box-shadow:0 0 10px ${col}66" id="bar-${f.key}"></div>
+          </div>
+          <div class="factor-insight">
+            <span class="urgency-pill" style="background:${uc}22;color:${uc}">${(fd.urgency||"low").toUpperCase()}</span>
+            ${fd.insight || ""}
+          </div>`;
+        fl.appendChild(div);
+        setTimeout(() => { document.getElementById("bar-"+f.key).style.width = fd.score + "%"; }, 300 + i * 80);
+      });
+
+      // Competitor
+      if (r.competitorEdge) {
+        document.getElementById("competitorBox").style.display = "block";
+        document.getElementById("competitorText").textContent = r.competitorEdge;
+      }
+
+      // SEO — Title
+      const ta = r.titleAnalysis || {};
+      document.getElementById("currentTitle").textContent = ta.currentTitle || "Not detected";
+      document.getElementById("suggestedTitle").textContent = ta.suggestedTitle || "—";
+      const cg = document.getElementById("checkGrid");
+      const kwGood = ta.hasMainKeywordFirst;
+      const plGood = ta.keywordPlacement === "good";
+      cg.innerHTML = `
+        <div class="check-item" style="background:${kwGood?"rgba(0,212,170,0.08)":"rgba(239,68,68,0.08)"};border:1px solid ${kwGood?"#00d4aa33":"#ef444433"}">
+          <div class="check-emoji">${kwGood?"✅":"❌"}</div>
+          <div class="check-label">Keyword at Start</div>
+        </div>
+        <div class="check-item" style="background:${plGood?"rgba(0,212,170,0.08)":"rgba(239,68,68,0.08)"};border:1px solid ${plGood?"#00d4aa33":"#ef444433"}">
+          <div class="check-emoji">${plGood?"✅":"⚠️"}</div>
+          <div class="check-label">Keyword Placement</div>
+        </div>`;
+
+      // SEO — Tags
+      const taga = r.tagAnalysis || {};
+      const dt = document.getElementById("detectedTags");
+      dt.innerHTML = (taga.detectedTags||[]).length
+        ? taga.detectedTags.map(t => `<span class="tag-chip" style="background:rgba(0,212,170,0.08);border:1px solid #00d4aa33;color:#00d4aa">${t}</span>`).join("")
+        : `<span style="color:#334155;font-size:12px">None detected</span>`;
+      const mt = document.getElementById("missingTags");
+      mt.innerHTML = (taga.missingKeywords||[]).map(t =>
+        `<span class="tag-chip" style="background:rgba(245,158,11,0.08);border:1px solid #f59e0b33;color:#f59e0b">+ ${t}</span>`).join("");
+
+      // Action plan
+      const al = document.getElementById("actionList");
+      al.innerHTML = (r.quickWins||[]).map((q, i) => {
+        const ic = q.impact === "high" ? "#00d4aa" : "#f59e0b";
+        const tc = q.timeframe === "24h" ? "#ef4444" : q.timeframe === "1week" ? "#f59e0b" : "#94a3b8";
+        return `
+          <div class="action-item">
+            <div class="action-head">
+              <div class="step-num">${i+1}</div>
+              <span class="impact-pill" style="background:${ic}22;color:${ic}">${(q.impact||"").toUpperCase()} IMPACT</span>
+              <span class="tf-pill" style="background:${tc}22;color:${tc}">⏱ ${q.timeframe||""}</span>
+            </div>
+            <div class="action-text">${q.action||""}</div>
+          </div>`;
+      }).join("");
+
+      // Algo note
+      if (r.algorithmNote) {
+        document.getElementById("algoNoteBox").style.display = "block";
+        document.getElementById("algoNoteText").textContent = r.algorithmNote;
+      }
+    }
+
+    // ── Reset ─────────────────────────────────────────────────────────────
+    function resetApp() {
+      document.getElementById("results").style.display      = "none";
+      document.getElementById("inputSection").style.display = "block";
+      document.getElementById("errorBox").style.display     = "none";
+      document.getElementById("gigUrl").value               = "";
+      document.getElementById("gigInfo").value              = "";
+    }
+  </script>
+</body>
+</html>
