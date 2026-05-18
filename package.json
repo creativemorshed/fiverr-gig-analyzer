@@ -1,0 +1,6 @@
+{
+  "name": "fiverr-gig-rank-analyzer",
+  "version": "2.0.0",
+  "description": "Fiverr Gig Rank Analyzer - AI powered by Fiverr 2025 algorithm data",
+  "engines": { "node": "18.x" }
+}
